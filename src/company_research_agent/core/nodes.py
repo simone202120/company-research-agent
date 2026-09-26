@@ -44,6 +44,11 @@ class ReviewVerdict(BaseModel):
     feedback: str = Field(default="", description="Actionable feedback when verdict is revise")
 
 
+def clean_plan(questions: list[str]) -> list[str]:
+    """Drops blank questions and caps the plan, whether it comes from the LLM or a human edit."""
+    return [q.strip() for q in questions if q.strip()][:MAX_QUESTIONS]
+
+
 def search_query(company: str, question: str) -> str:
     """Edited questions may drop the company name; the search needs it to stay on topic."""
     return question if company.lower() in question.lower() else f"{company}: {question}"
@@ -86,14 +91,14 @@ class ResearchNodes:
                 HumanMessage(prompts.PLANNER_USER.format(company=state["company"])),
             ],
         )
-        questions = [q.strip() for q in plan.questions if q.strip()][:MAX_QUESTIONS]
+        questions = clean_plan(plan.questions)
         if not questions:
             raise InvalidLLMOutputError("the planner returned no research questions")
         return {"plan": questions, "approved": False, "revision_count": 0}
 
     def human_approval(self, state: ResearchState) -> ResearchState:
         decision = interrupt({"plan": state["plan"]})
-        plan = [q.strip() for q in decision.get("plan") or [] if q.strip()] or state["plan"]
+        plan = clean_plan(decision.get("plan") or []) or state["plan"]
         return {"plan": plan, "approved": True}
 
     def researcher(self, state: QuestionTask) -> ResearchState:

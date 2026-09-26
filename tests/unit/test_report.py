@@ -37,7 +37,7 @@ def test_invalid_citations_reports_numbers_outside_sources() -> None:
 
 
 def test_remap_citations_rewrites_and_drops_unknown_numbers() -> None:
-    assert remap_citations("x [1] y [2, 3] z [9]", {1: 5, 3: 7}) == "x [5] y [7] z "
+    assert remap_citations("x [1] y [2, 3] z [9]", {1: 5, 3: 7}) == "x [5] y [7] z"
 
 
 def test_strip_invalid_citations_keeps_valid_ones() -> None:
@@ -47,7 +47,7 @@ def test_strip_invalid_citations_keeps_valid_ones() -> None:
 def test_render_report_appends_numbered_sources_and_strips_invalid_citations() -> None:
     sources = number_sources([finding("a", "https://a.test")])
     report = render_report("# R\n\nFact [1] and [2].", sources)
-    assert "Fact [1] and ." in report
+    assert "Fact [1] and." in report
     assert report.endswith("## Sources\n\n1. [https://a.test](https://a.test)\n")
     assert invalid_citations(report, len(sources)) == []
 

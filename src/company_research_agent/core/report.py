@@ -4,7 +4,7 @@ import re
 
 from company_research_agent.core.state import Finding, Source
 
-CITATION = re.compile(r"\[(\d+(?:\s*,\s*\d+)*)\]")
+CITATION = re.compile(r"(\s*)\[(\d+(?:\s*,\s*\d+)*)\]")
 
 
 def number_sources(findings: list[Finding]) -> list[Source]:
@@ -28,7 +28,7 @@ def global_numbers(finding: Finding, sources: list[Source]) -> dict[int, int]:
 
 
 def cited_numbers(text: str) -> set[int]:
-    return {int(n) for group in CITATION.findall(text) for n in group.split(",")}
+    return {int(n) for _, group in CITATION.findall(text) for n in group.split(",")}
 
 
 def invalid_citations(text: str, source_count: int) -> list[int]:
@@ -39,8 +39,9 @@ def remap_citations(text: str, mapping: dict[int, int]) -> str:
     """Rewrites citations through `mapping`; numbers missing from it are dropped."""
 
     def replace(match: re.Match[str]) -> str:
-        numbers = [mapping.get(int(n)) for n in match.group(1).split(",")]
-        return "".join(f"[{n}]" for n in numbers if n is not None)
+        numbers = [mapping.get(int(n)) for n in match.group(2).split(",")]
+        kept = "".join(f"[{n}]" for n in numbers if n is not None)
+        return match.group(1) + kept if kept else ""
 
     return CITATION.sub(replace, text)
 

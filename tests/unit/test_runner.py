@@ -6,7 +6,7 @@ from company_research_agent.core.errors import (
     ResearchNotFoundError,
 )
 from company_research_agent.core.graph import build_graph
-from company_research_agent.core.nodes import ReviewVerdict
+from company_research_agent.core.nodes import MAX_QUESTIONS, ReviewVerdict
 from company_research_agent.core.runner import ResearchRunner, ResearchStatus
 from tests.fakes import FakeLLM, FakeSearch
 
@@ -90,3 +90,10 @@ def test_failed_node_marks_research_failed(fake_llm: FakeLLM) -> None:
     assert view.error is not None
     assert "search is down" in view.error
     assert view.current_node == "researcher"
+
+
+def test_resume_caps_oversized_edited_plan(runner: ResearchRunner) -> None:
+    thread_id = runner.start("Acme").thread_id
+    runner.approve(thread_id)
+    runner.resume(thread_id, [f"Acme question {i}?" for i in range(50)])
+    assert len(runner.get(thread_id).plan) == MAX_QUESTIONS
