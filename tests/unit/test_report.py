@@ -2,6 +2,7 @@ from company_research_agent.core.report import (
     cited_numbers,
     global_numbers,
     invalid_citations,
+    is_web_url,
     number_sources,
     remap_citations,
     render_report,
@@ -54,3 +55,14 @@ def test_render_report_appends_numbered_sources_and_strips_invalid_citations() -
 
 def test_render_report_without_sources_says_so() -> None:
     assert "No sources found." in render_report("# R", [])
+
+
+def test_number_sources_sanitizes_titles() -> None:
+    results = [{"title": "Evil](javascript:x) [\n", "url": "https://a.test", "snippet": ""}]
+    [source] = number_sources([{"question": "q", "summary": "", "results": results}])
+    assert source["title"] == "Evil  javascript:x"
+
+
+def test_is_web_url_accepts_only_http_schemes() -> None:
+    assert is_web_url("https://a.test")
+    assert not is_web_url("javascript:alert(1)")

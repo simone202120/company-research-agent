@@ -160,3 +160,15 @@ def test_route_to_researchers_sends_one_task_per_question() -> None:
 def test_route_after_review() -> None:
     assert route_after_review({"final_report": "x"}) == "__end__"
     assert route_after_review({"review_feedback": "fix"}) == "writer"
+
+
+def test_researcher_drops_non_web_urls(fake_llm: FakeLLM) -> None:
+    class MixedSearch(FakeSearch):
+        def __call__(self, query: str) -> list:  # type: ignore[type-arg]
+            return [
+                {"title": "ok", "url": "https://a.test", "snippet": ""},
+                {"title": "bad", "url": "javascript:alert(1)", "snippet": ""},
+            ]
+
+    update = nodes(fake_llm, MixedSearch()).researcher({"company": "Acme", "question": "Who?"})
+    assert [r["url"] for r in update["findings"][0]["results"]] == ["https://a.test"]
