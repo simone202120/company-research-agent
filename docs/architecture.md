@@ -57,3 +57,14 @@ single-user demo.
 Tracing is one `CallbackHandler` passed in the run config, with the thread id as Langfuse session
 id so the planning run and the resumed run of a research share a session. `langchain` is a
 dependency only because `langfuse.langchain` imports it at runtime.
+
+### Approval resumes the run in a FastAPI background task
+`POST /research` runs the graph synchronously up to the approval interrupt (one planner call), so
+the plan comes back in the response. `POST /research/{id}/approve` claims the thread (409 if it is
+not awaiting approval), answers `202`, and resumes the graph in a `BackgroundTasks` job; clients
+poll `GET /research/{id}`. Trade-off: no queue or worker process to operate, but runs live inside
+the API process (see the status decision above) and a crash loses in-flight runs.
+
+### Missing OpenRouter key fails at startup
+`create_llm` raises `ConfigurationError` when `OPENROUTER_API_KEY` is empty, so a misconfigured
+deployment fails when the API starts instead of on the first research.

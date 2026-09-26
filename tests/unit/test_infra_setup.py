@@ -1,9 +1,10 @@
 from pathlib import Path
 
+import pytest
 from langchain_openai import ChatOpenAI
 from langfuse.langchain import CallbackHandler
 
-from company_research_agent.config import Settings
+from company_research_agent.config import ConfigurationError, Settings
 from company_research_agent.infra.checkpointer import sqlite_checkpointer
 from company_research_agent.infra.tracing import tracing_callbacks
 from company_research_agent.llm.factory import create_llm
@@ -15,6 +16,11 @@ def test_create_llm_targets_openrouter() -> None:
     assert isinstance(llm, ChatOpenAI)
     assert llm.model_name == "vendor/model"
     assert llm.openai_api_base == settings.openrouter_base_url
+
+
+def test_create_llm_without_key_fails_fast() -> None:
+    with pytest.raises(ConfigurationError, match="OPENROUTER_API_KEY"):
+        create_llm(Settings(_env_file=None, openrouter_api_key=""))
 
 
 def test_tracing_disabled_without_keys() -> None:
