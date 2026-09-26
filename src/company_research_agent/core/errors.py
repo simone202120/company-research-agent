@@ -9,6 +9,10 @@ class InvalidLLMOutputError(ResearchError):
     """The LLM returned output that does not match the expected schema."""
 
 
+class SearchError(ResearchError):
+    """No search provider could answer a query."""
+
+
 class ResearchNotFoundError(ResearchError):
     """No research exists for the given thread id."""
 

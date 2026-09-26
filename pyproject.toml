@@ -6,11 +6,16 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.12"
 dependencies = [
+    "ddgs>=9.16.0",
+    "langchain>=1.4.2",
     "langchain-core>=1.6.5",
+    "langchain-openai>=1.6.6",
+    "langfuse>=4.15.6",
     "langgraph>=1.2.12",
     "langgraph-checkpoint-sqlite>=3.1.1",
     "pydantic>=2.10",
     "pydantic-settings>=2.6",
+    "tavily-python>=0.8.4",
 ]
 
 [dependency-groups]
@@ -42,6 +47,10 @@ strict = true
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
+module = ["tavily.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
 module = ["tests.*"]
 disallow_untyped_defs = false
 
@@ -67,3 +76,7 @@ min_confidence = 80
 
 [tool.deptry]
 known_first_party = ["company_research_agent"]
+
+[tool.deptry.per_rule_ignores]
+# Imported at runtime by langfuse.langchain, never directly by our code.
+DEP002 = ["langchain"]
