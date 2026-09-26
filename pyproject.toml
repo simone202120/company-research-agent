@@ -6,6 +6,9 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.12"
 dependencies = [
+    "langchain-core>=1.6.5",
+    "langgraph>=1.2.12",
+    "langgraph-checkpoint-sqlite>=3.1.1",
     "pydantic>=2.10",
     "pydantic-settings>=2.6",
 ]
