@@ -165,6 +165,11 @@ def test_report_body_drops_title_and_sources_and_demotes_sections() -> None:
     assert report_body(report) == "#### Overview\n\nFact [1]."
 
 
+def test_report_body_escapes_dollars_so_amounts_are_not_rendered_as_latex() -> None:
+    report = "# Acme\n\n## Overview\n\nRaised $24 billion, then $13.7 billion [1]."
+    assert report_body(report) == "#### Overview\n\nRaised \\$24 billion, then \\$13.7 billion [1]."
+
+
 def test_edited_plan_drops_blank_questions(monkeypatch: pytest.MonkeyPatch) -> None:
     rows = [{"question": " Real one "}, {"question": "   "}, {"question": None}]
     monkeypatch.setattr(components.st, "data_editor", lambda *a, **k: rows)

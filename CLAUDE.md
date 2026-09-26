@@ -9,7 +9,7 @@ Product scope and requirements: `docs/design.md` (read it before starting any wo
 ```bash
 uv sync                          # install deps (if uv is missing: pip install uv)
 uv run pytest tests/unit -q      # fast unit tests (no keys, no network)
-uv run pytest -m integration     # needs `docker compose up -d `
+uv run pytest -m integration     # full graph with fake LLM and on-disk checkpointer
 uv run pytest -m llm             # real LLM calls, manual only
 uv run python scripts/code_map.py
 docker compose up --build        # full stack
