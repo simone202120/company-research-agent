@@ -63,7 +63,7 @@ disallow_untyped_defs = false
 testpaths = ["tests"]
 addopts = "-m 'not integration and not llm'"
 markers = [
-    "integration: needs real infrastructure (docker compose services)",
+    "integration: full graph and API wiring on a real SQLite file (no external services)",
     "llm: calls a real LLM through OpenRouter (manual only)",
 ]
 

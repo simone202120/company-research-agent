@@ -14,6 +14,7 @@ from company_research_agent.core.errors import InvalidLLMOutputError
 from company_research_agent.core.report import (
     global_numbers,
     invalid_citations,
+    is_web_url,
     number_sources,
     remap_citations,
     render_report,
@@ -123,7 +124,11 @@ class ResearchNodes:
         return {"plan": plan, "approved": True, "approved_at": time.time()}
 
     def researcher(self, state: QuestionTask) -> ResearchState:
-        results = self.search(search_query(state["company"], state["question"]))
+        results = [
+            r
+            for r in self.search(search_query(state["company"], state["question"]))
+            if is_web_url(r["url"])
+        ]
         logger.info("question %r: %d search results", state["question"], len(results))
         summary, usage = "", Usage(llm_calls=0, input_tokens=0, output_tokens=0)
         if results:
