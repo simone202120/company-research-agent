@@ -66,3 +66,15 @@ def test_number_sources_sanitizes_titles() -> None:
 def test_is_web_url_accepts_only_http_schemes() -> None:
     assert is_web_url("https://a.test")
     assert not is_web_url("javascript:alert(1)")
+
+
+def test_number_sources_encodes_parentheses_in_urls() -> None:
+    url = "https://en.wikipedia.org/wiki/Acme_(company)"
+    findings = [finding("a", url)]
+    sources = number_sources(findings)
+    assert sources[0]["url"] == "https://en.wikipedia.org/wiki/Acme_%28company%29"
+    assert global_numbers(findings[0], sources) == {1: 1}
+
+
+def test_is_web_url_ignores_scheme_case() -> None:
+    assert is_web_url("HTTPS://a.test")

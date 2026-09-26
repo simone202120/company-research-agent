@@ -9,12 +9,17 @@ UNSAFE_TITLE_CHARS = re.compile(r"[\[\]()<>\x00-\x1f]")
 
 
 def is_web_url(url: str) -> bool:
-    return url.startswith(("https://", "http://"))
+    return url.lower().startswith(("https://", "http://"))
 
 
 def safe_title(title: str) -> str:
     """Web page titles are untrusted: strip what could break or inject Markdown links."""
     return UNSAFE_TITLE_CHARS.sub(" ", title).strip()
+
+
+def safe_url(url: str) -> str:
+    """Encodes the characters that would end a Markdown link destination early."""
+    return url.replace(" ", "%20").replace("(", "%28").replace(")", "%29")
 
 
 def number_sources(findings: list[Finding]) -> list[Source]:
@@ -29,7 +34,7 @@ def number_sources(findings: list[Finding]) -> list[Source]:
                     {
                         "number": len(sources) + 1,
                         "title": safe_title(result["title"]),
-                        "url": result["url"],
+                        "url": safe_url(result["url"]),
                     }
                 )
     return sources
@@ -38,7 +43,9 @@ def number_sources(findings: list[Finding]) -> list[Source]:
 def global_numbers(finding: Finding, sources: list[Source]) -> dict[int, int]:
     """Maps the 1-based result positions of a finding to their global source numbers."""
     by_url = {source["url"]: source["number"] for source in sources}
-    return {i: by_url[result["url"]] for i, result in enumerate(finding["results"], start=1)}
+    return {
+        i: by_url[safe_url(result["url"])] for i, result in enumerate(finding["results"], start=1)
+    }
 
 
 def cited_numbers(text: str) -> set[int]:
