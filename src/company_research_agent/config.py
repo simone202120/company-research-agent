@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     checkpoint_db: str = "data/checkpoints.sqlite"
     max_revisions: int = 1
 
+    api_url: str = "http://localhost:8000"
+
     @property
     def tracing_enabled(self) -> bool:
         return bool(self.langfuse_public_key and self.langfuse_secret_key.get_secret_value())

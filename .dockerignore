@@ -1,0 +1,12 @@
+.env
+.env.*
+.git
+.venv
+.claude
+data
+tests
+docs
+**/__pycache__
+.*_cache
+.coverage
+coverage.xml

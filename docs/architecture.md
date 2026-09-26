@@ -81,3 +81,14 @@ state makes them durable like the rest of the research. Cost is an estimate: tok
 configurable `LLM_INPUT_PRICE_PER_MTOK` / `LLM_OUTPUT_PRICE_PER_MTOK`, computed by the API.
 Trade-off: it can drift from the real OpenRouter bill (exact per-call cost is visible in Langfuse),
 and a structured-output call that fails to parse is not counted (the run fails anyway).
+
+### The UI is a thin HTTP client
+The Streamlit page only calls the API (`API_URL`); it never imports `core/`. Polling while a
+research runs uses an `st.fragment` refreshed every 2 s, so only the progress timeline reruns. The
+timeline is derived from the status and current node returned by the API. Trade-off: the UI
+cannot show per-question progress inside the parallel research step, only the step itself.
+
+### One Docker image for both services
+The API and the UI share one image (dependencies installed with `uv sync --locked --no-dev`,
+non-root user); compose starts it twice with different commands and keeps the SQLite checkpoints
+in a named volume. `.env` is optional in compose and never copied into the image.

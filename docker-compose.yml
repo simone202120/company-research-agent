@@ -1,0 +1,32 @@
+services:
+  api:
+    build: .
+    image: company-research-agent
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      CHECKPOINT_DB: /app/data/checkpoints.sqlite
+    volumes:
+      - research-data:/app/data
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  ui:
+    image: company-research-agent
+    command: ["streamlit", "run", "src/company_research_agent/ui/app.py", "--server.address=0.0.0.0", "--server.port=8501"]
+    environment:
+      API_URL: http://api:8000
+    ports:
+      - "8501:8501"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  research-data:
