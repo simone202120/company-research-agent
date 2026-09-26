@@ -84,7 +84,9 @@ def report_body(report: str) -> str:
     lines = body.splitlines()
     if lines and lines[0].startswith("# "):
         lines = lines[1:]
-    return "\n".join("##" + line if line.startswith("## ") else line for line in lines).strip()
+    body = "\n".join("##" + line if line.startswith("## ") else line for line in lines).strip()
+    # Streamlit renders text between two "$" as LaTeX, which garbles currency amounts.
+    return body.replace("$", "\\$")
 
 
 def render_report(research: dict[str, Any]) -> None:

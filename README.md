@@ -7,6 +7,12 @@ a Streamlit page drives it, and every research run is traced end-to-end in Langf
 Product scope and design decisions: [`docs/design.md`](docs/design.md) and
 [`docs/architecture.md`](docs/architecture.md).
 
+## Demo
+
+| 1. Review and edit the plan | 2. Read the sourced report |
+|---|---|
+| ![Research plan awaiting approval](docs/images/research-plan.png) | ![Final report with metrics and sources](docs/images/research-report.png) |
+
 ## Features
 
 - **Plan, then approve**: the planner drafts 4-6 research questions; a human reviews, edits or
