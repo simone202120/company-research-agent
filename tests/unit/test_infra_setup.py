@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import httpx
 import pytest
 from langchain_openai import ChatOpenAI
 from langfuse.langchain import CallbackHandler
@@ -61,7 +62,7 @@ def test_trace_url_is_none_when_langfuse_is_unreachable(monkeypatch: pytest.Monk
     tracing = enabled_tracing()
 
     def unreachable() -> str:
-        raise ConnectionError("down")
+        raise httpx.ConnectError("down")
 
     assert tracing.client is not None
     monkeypatch.setattr(tracing.client, "_get_project_id", unreachable)

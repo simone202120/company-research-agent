@@ -77,6 +77,9 @@ def get_research(
         {
             **asdict(view),
             "usage": usage_out(view.usage, settings) if view.usage else None,
-            "trace_url": tracing.trace_url(thread_id),
+            # Only finished runs link their trace: building the link may call Langfuse.
+            "trace_url": tracing.trace_url(thread_id)
+            if view.status is ResearchStatus.DONE
+            else None,
         }
     )

@@ -134,7 +134,7 @@ class ResearchRunner:
 
 def latency_seconds(values: dict[str, Any]) -> float | None:
     """Planning time plus research time; the wait for human approval is excluded."""
-    if "finished_at" not in values:
+    if not {"planning_seconds", "approved_at", "finished_at"} <= values.keys():
         return None
     seconds: float = values["planning_seconds"] + values["finished_at"] - values["approved_at"]
     return round(seconds, 2)

@@ -2,8 +2,10 @@
 
 import logging
 
+import httpx
 from langchain_core.callbacks import BaseCallbackHandler
 from langfuse import Langfuse
+from langfuse.api.core.api_error import ApiError
 from langfuse.langchain import CallbackHandler
 from langfuse.types import TraceContext
 
@@ -20,6 +22,7 @@ class Tracing:
                 public_key=settings.langfuse_public_key,
                 secret_key=settings.langfuse_secret_key.get_secret_value(),
                 host=settings.langfuse_host,
+                timeout=5,
             )
             if settings.tracing_enabled
             else None
@@ -41,7 +44,7 @@ class Tracing:
             return None
         try:
             return self.client.get_trace_url(trace_id=self.trace_id(thread_id))
-        except Exception:
+        except (httpx.HTTPError, ApiError):
             # The link needs a Langfuse API call; an outage must not break the status endpoint.
             logger.warning("could not build the Langfuse trace url", exc_info=True)
             return None

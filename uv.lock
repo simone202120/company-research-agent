@@ -284,6 +284,7 @@ source = { editable = "." }
 dependencies = [
     { name = "ddgs" },
     { name = "fastapi" },
+    { name = "httpx" },
     { name = "langchain" },
     { name = "langchain-core" },
     { name = "langchain-openai" },
@@ -299,7 +300,6 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "deptry" },
-    { name = "httpx" },
     { name = "mypy" },
     { name = "pytest" },
     { name = "pytest-cov" },
@@ -311,6 +311,7 @@ dev = [
 requires-dist = [
     { name = "ddgs", specifier = ">=9.16.0" },
     { name = "fastapi", specifier = ">=0.141.1" },
+    { name = "httpx", specifier = ">=0.28.1" },
     { name = "langchain", specifier = ">=1.4.2" },
     { name = "langchain-core", specifier = ">=1.6.5" },
     { name = "langchain-openai", specifier = ">=1.6.6" },
@@ -326,7 +327,6 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "deptry", specifier = ">=0.23" },
-    { name = "httpx", specifier = ">=0.28.1" },
     { name = "mypy", specifier = ">=1.15" },
     { name = "pytest", specifier = ">=8.3" },
     { name = "pytest-cov", specifier = ">=6.0" },
