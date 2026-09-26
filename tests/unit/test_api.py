@@ -3,12 +3,20 @@ from fastapi.testclient import TestClient
 from langgraph.checkpoint.memory import InMemorySaver
 
 from company_research_agent.api.app import create_app
-from company_research_agent.api.routes import get_runner
+from company_research_agent.api.routes import get_runner, get_tracing
+from company_research_agent.config import Settings, get_settings
 from company_research_agent.core.graph import build_graph
 from company_research_agent.core.runner import ResearchRunner
+from company_research_agent.infra.tracing import Tracing
 from tests.fakes import FakeLLM, FakeSearch
 
 MISSING_ID = "0" * 32
+SETTINGS = Settings(
+    _env_file=None,
+    langfuse_public_key="",
+    llm_input_price_per_mtok=1.0,
+    llm_output_price_per_mtok=10.0,
+)
 
 
 @pytest.fixture
@@ -19,6 +27,8 @@ def client(runner: ResearchRunner) -> TestClient:
 def client_for(runner: ResearchRunner) -> TestClient:
     app = create_app()
     app.dependency_overrides[get_runner] = lambda: runner
+    app.dependency_overrides[get_tracing] = lambda: Tracing(SETTINGS)
+    app.dependency_overrides[get_settings] = lambda: SETTINGS
     return TestClient(app, raise_server_exceptions=False)
 
 
@@ -51,6 +61,8 @@ def test_status_awaiting_approval_after_start(client: TestClient) -> None:
     assert body["company"] == "Acme"
     assert body["current_node"] == "human_approval"
     assert body["report"] is None
+    assert body["usage"]["llm_calls"] == 1
+    assert body["latency_seconds"] is None
 
 
 def test_approve_with_edited_plan_runs_to_done(client: TestClient, fake_search: FakeSearch) -> None:
@@ -64,6 +76,15 @@ def test_approve_with_edited_plan_runs_to_done(client: TestClient, fake_search: 
     assert fake_search.queries == ["Acme revenue?"]
     assert "## Sources" in body["report"]
     assert body["sources"][0] == {"number": 1, "title": "Acme home", "url": "https://acme.test"}
+    # planner + 1 researcher + writer + reviewer, 100 input and 20 output tokens each
+    assert body["usage"] == {
+        "llm_calls": 4,
+        "input_tokens": 400,
+        "output_tokens": 80,
+        "estimated_cost_usd": 0.0012,
+    }
+    assert body["latency_seconds"] >= 0
+    assert body["trace_url"] is None
 
 
 def test_approve_without_body_plan_keeps_plan(client: TestClient, fake_llm: FakeLLM) -> None:

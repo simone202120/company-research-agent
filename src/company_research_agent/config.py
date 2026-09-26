@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     llm_model: str = "google/gemini-3.8-flash"
     llm_timeout_seconds: float = 60
+    # USD per million tokens, used only to show an estimated cost per research.
+    llm_input_price_per_mtok: float = 0.30
+    llm_output_price_per_mtok: float = 2.50
 
     langfuse_public_key: str = ""
     langfuse_secret_key: SecretStr = SecretStr("")

@@ -17,7 +17,7 @@ from company_research_agent.core.graph import build_graph
 from company_research_agent.core.runner import ResearchRunner
 from company_research_agent.infra.checkpointer import sqlite_checkpointer
 from company_research_agent.infra.search import create_search
-from company_research_agent.infra.tracing import tracing_callbacks
+from company_research_agent.infra.tracing import Tracing
 from company_research_agent.llm.factory import create_llm
 
 
@@ -29,7 +29,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         graph = build_graph(
             create_llm(settings), create_search(settings), saver, settings.max_revisions
         )
-        app.state.runner = ResearchRunner(graph, tracing_callbacks(settings))
+        app.state.tracing = Tracing(settings)
+        app.state.runner = ResearchRunner(graph, app.state.tracing.callbacks)
         yield
 
 
