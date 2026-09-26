@@ -3,10 +3,12 @@
 from langchain_core.language_models import BaseChatModel
 from langchain_openai import ChatOpenAI
 
-from company_research_agent.config import Settings
+from company_research_agent.config import ConfigurationError, Settings
 
 
 def create_llm(settings: Settings) -> BaseChatModel:
+    if not settings.openrouter_api_key.get_secret_value():
+        raise ConfigurationError("OPENROUTER_API_KEY is not set")
     return ChatOpenAI(
         model=settings.llm_model,
         api_key=settings.openrouter_api_key,
