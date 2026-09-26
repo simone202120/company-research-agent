@@ -12,12 +12,14 @@ class Settings(BaseSettings):
     openrouter_api_key: SecretStr = SecretStr("")
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     llm_model: str = "google/gemini-3.8-flash"
+    llm_timeout_seconds: float = 60
 
     langfuse_public_key: str = ""
     langfuse_secret_key: SecretStr = SecretStr("")
     langfuse_host: str = "https://cloud.langfuse.com"
 
     tavily_api_key: SecretStr = SecretStr("")
+    search_max_results: int = 5
     checkpoint_db: str = "data/checkpoints.sqlite"
     max_revisions: int = 1
 
