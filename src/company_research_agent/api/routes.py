@@ -12,8 +12,12 @@ from company_research_agent.api.schemas import (
     ResearchRequest,
     ResearchResponse,
     StartResponse,
+    UsageOut,
 )
+from company_research_agent.config import Settings, get_settings
 from company_research_agent.core.runner import ResearchRunner, ResearchStatus
+from company_research_agent.core.state import Usage
+from company_research_agent.infra.tracing import Tracing
 
 router = APIRouter()
 
@@ -25,7 +29,20 @@ def get_runner(request: Request) -> ResearchRunner:
     return runner
 
 
+def get_tracing(request: Request) -> Tracing:
+    tracing: Tracing = request.app.state.tracing
+    return tracing
+
+
 Runner = Annotated[ResearchRunner, Depends(get_runner)]
+
+
+def usage_out(usage: Usage, settings: Settings) -> UsageOut:
+    cost = (
+        usage["input_tokens"] * settings.llm_input_price_per_mtok
+        + usage["output_tokens"] * settings.llm_output_price_per_mtok
+    ) / 1_000_000
+    return UsageOut(**usage, estimated_cost_usd=round(cost, 6))
 
 
 @router.get("/health")
@@ -49,5 +66,20 @@ def approve_research(
 
 
 @router.get("/research/{thread_id}")
-def get_research(thread_id: ThreadId, runner: Runner) -> ResearchResponse:
-    return ResearchResponse.model_validate(asdict(runner.get(thread_id)))
+def get_research(
+    thread_id: ThreadId,
+    runner: Runner,
+    tracing: Annotated[Tracing, Depends(get_tracing)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> ResearchResponse:
+    view = runner.get(thread_id)
+    return ResearchResponse.model_validate(
+        {
+            **asdict(view),
+            "usage": usage_out(view.usage, settings) if view.usage else None,
+            # Only finished runs link their trace: building the link may call Langfuse.
+            "trace_url": tracing.trace_url(thread_id)
+            if view.status is ResearchStatus.DONE
+            else None,
+        }
+    )

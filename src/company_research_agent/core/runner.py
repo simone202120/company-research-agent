@@ -3,10 +3,11 @@
 import logging
 import threading
 import uuid
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import Any
 
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.runnables import RunnableConfig
@@ -17,7 +18,7 @@ from company_research_agent.core.errors import (
     ResearchNotFoundError,
 )
 from company_research_agent.core.graph import ResearchGraph
-from company_research_agent.core.state import Source
+from company_research_agent.core.state import Source, Usage
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,8 @@ class ResearchView:
     report: str | None = None
     sources: list[Source] = field(default_factory=list)
     error: str | None = None
+    usage: Usage | None = None
+    latency_seconds: float | None = None
 
 
 class ResearchRunner:
@@ -49,17 +52,19 @@ class ResearchRunner:
     """
 
     def __init__(
-        self, graph: ResearchGraph, callbacks: list[BaseCallbackHandler] | None = None
+        self,
+        graph: ResearchGraph,
+        callbacks: Callable[[str], list[BaseCallbackHandler]] = lambda _: [],
     ) -> None:
         self.graph = graph
-        self.callbacks = callbacks or []
+        self.callbacks = callbacks
         self._active: set[str] = set()
         self._lock = threading.Lock()
 
     def _config(self, thread_id: str) -> RunnableConfig:
         return {
             "configurable": {"thread_id": thread_id},
-            "callbacks": self.callbacks,
+            "callbacks": self.callbacks(thread_id),
             "metadata": {"langfuse_session_id": thread_id},
             "run_name": "company-research",
         }
@@ -122,4 +127,14 @@ class ResearchRunner:
             report=report,
             sources=values.get("sources", []) if report else [],
             error=error,
+            usage=values.get("usage") or None,
+            latency_seconds=latency_seconds(values),
         )
+
+
+def latency_seconds(values: dict[str, Any]) -> float | None:
+    """Planning time plus research time; the wait for human approval is excluded."""
+    if not {"planning_seconds", "approved_at", "finished_at"} <= values.keys():
+        return None
+    seconds: float = values["planning_seconds"] + values["finished_at"] - values["approved_at"]
+    return round(seconds, 2)

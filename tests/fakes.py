@@ -18,6 +18,7 @@ PLAN = [
     "What technology does Acme use?",
     "What are Acme's recent news?",
 ]
+USAGE = {"input_tokens": 100, "output_tokens": 20, "total_tokens": 120}
 REPORT = "# Acme\n\n## Overview\n\nAcme builds rockets [1].\n\n## Products\n\nAnvils [2]."
 
 
@@ -42,15 +43,22 @@ class FakeLLM(BaseChatModel):
             text = self.report
         else:
             text = self.summary
-        return ChatResult(generations=[ChatGeneration(message=AIMessage(content=text))])
+        message = AIMessage(content=text, usage_metadata=USAGE)
+        return ChatResult(generations=[ChatGeneration(message=message)])
 
     def with_structured_output(
         self, schema: dict[str, Any] | type, **kwargs: Any
     ) -> Runnable[LanguageModelInput, dict[str, Any] | BaseModel]:
-        def answer(_: LanguageModelInput) -> BaseModel:
-            if schema is ResearchPlan:
-                return ResearchPlan(questions=self.plan)
-            return self.verdicts.pop(0) if self.verdicts else ReviewVerdict(verdict="ok")
+        def answer(_: LanguageModelInput) -> dict[str, Any]:
+            parsed: BaseModel = (
+                ResearchPlan(questions=self.plan)
+                if schema is ResearchPlan
+                else self.verdicts.pop(0)
+                if self.verdicts
+                else ReviewVerdict(verdict="ok")
+            )
+            raw = AIMessage(content="", usage_metadata=USAGE)
+            return {"raw": raw, "parsed": parsed, "parsing_error": None}
 
         return RunnableLambda(answer)
 

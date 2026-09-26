@@ -1,11 +1,12 @@
 """Graph nodes (planner, approval, researcher, writer, reviewer) and their routing functions."""
 
 import logging
+import time
 from collections.abc import Callable
 from typing import Literal
 
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langgraph.types import Send, interrupt
 from pydantic import BaseModel, Field
 
@@ -23,6 +24,7 @@ from company_research_agent.core.state import (
     ResearchState,
     SearchResult,
     Source,
+    Usage,
 )
 from company_research_agent.llm import prompts
 
@@ -47,6 +49,15 @@ class ReviewVerdict(BaseModel):
 def clean_plan(questions: list[str]) -> list[str]:
     """Drops blank questions and caps the plan, whether it comes from the LLM or a human edit."""
     return [q.strip() for q in questions if q.strip()][:MAX_QUESTIONS]
+
+
+def usage_of(message: BaseMessage) -> Usage:
+    metadata = message.usage_metadata if isinstance(message, AIMessage) else None
+    return Usage(
+        llm_calls=1,
+        input_tokens=metadata["input_tokens"] if metadata else 0,
+        output_tokens=metadata["output_tokens"] if metadata else 0,
+    )
 
 
 def search_query(company: str, question: str) -> str:
@@ -74,17 +85,21 @@ class ResearchNodes:
         self.search = search
         self.max_revisions = max_revisions
 
-    def _structured[T: BaseModel](self, schema: type[T], messages: list[BaseMessage]) -> T:
-        output = self.llm.with_structured_output(schema).invoke(messages)
-        if not isinstance(output, schema):
-            raise InvalidLLMOutputError(f"expected {schema.__name__}, got {type(output).__name__}")
-        return output
+    def _structured[T: BaseModel](
+        self, schema: type[T], messages: list[BaseMessage]
+    ) -> tuple[T, Usage]:
+        output = self.llm.with_structured_output(schema, include_raw=True).invoke(messages)
+        if not isinstance(output, dict) or not isinstance(output.get("parsed"), schema):
+            raise InvalidLLMOutputError(f"the LLM output does not match {schema.__name__}")
+        return output["parsed"], usage_of(output["raw"])
 
-    def _text(self, messages: list[BaseMessage]) -> str:
-        return self.llm.invoke(messages).text.strip()
+    def _text(self, messages: list[BaseMessage]) -> tuple[str, Usage]:
+        message = self.llm.invoke(messages)
+        return message.text.strip(), usage_of(message)
 
     def planner(self, state: ResearchState) -> ResearchState:
-        plan = self._structured(
+        started = time.time()
+        plan, usage = self._structured(
             ResearchPlan,
             [
                 SystemMessage(prompts.PLANNER_SYSTEM),
@@ -94,19 +109,25 @@ class ResearchNodes:
         questions = clean_plan(plan.questions)
         if not questions:
             raise InvalidLLMOutputError("the planner returned no research questions")
-        return {"plan": questions, "approved": False, "revision_count": 0}
+        return {
+            "plan": questions,
+            "approved": False,
+            "revision_count": 0,
+            "usage": usage,
+            "planning_seconds": time.time() - started,
+        }
 
     def human_approval(self, state: ResearchState) -> ResearchState:
         decision = interrupt({"plan": state["plan"]})
         plan = clean_plan(decision.get("plan") or []) or state["plan"]
-        return {"plan": plan, "approved": True}
+        return {"plan": plan, "approved": True, "approved_at": time.time()}
 
     def researcher(self, state: QuestionTask) -> ResearchState:
         results = self.search(search_query(state["company"], state["question"]))
         logger.info("question %r: %d search results", state["question"], len(results))
-        summary = ""
+        summary, usage = "", Usage(llm_calls=0, input_tokens=0, output_tokens=0)
         if results:
-            summary = self._text(
+            summary, usage = self._text(
                 [
                     SystemMessage(prompts.RESEARCHER_SYSTEM),
                     HumanMessage(
@@ -117,7 +138,7 @@ class ResearchNodes:
                 ]
             )
         finding: Finding = {"question": state["question"], "summary": summary, "results": results}
-        return {"findings": [finding]}
+        return {"findings": [finding], "usage": usage}
 
     def writer(self, state: ResearchState) -> ResearchState:
         sources = number_sources(state["findings"])
@@ -132,12 +153,17 @@ class ResearchNodes:
                 draft=state["draft_report"], feedback=state["review_feedback"]
             )
             revision_count += 1
-        draft = self._text([SystemMessage(prompts.WRITER_SYSTEM), HumanMessage(user)])
-        return {"sources": sources, "draft_report": draft, "revision_count": revision_count}
+        draft, usage = self._text([SystemMessage(prompts.WRITER_SYSTEM), HumanMessage(user)])
+        return {
+            "sources": sources,
+            "draft_report": draft,
+            "revision_count": revision_count,
+            "usage": usage,
+        }
 
     def reviewer(self, state: ResearchState) -> ResearchState:
         draft, sources = state["draft_report"], state["sources"]
-        verdict = self._structured(
+        verdict, usage = self._structured(
             ReviewVerdict,
             [
                 SystemMessage(prompts.REVIEWER_SYSTEM),
@@ -160,8 +186,13 @@ class ResearchNodes:
             )
         review_feedback = "\n".join(feedback)
         if review_feedback and state.get("revision_count", 0) < self.max_revisions:
-            return {"review_feedback": review_feedback}
-        return {"review_feedback": review_feedback, "final_report": render_report(draft, sources)}
+            return {"review_feedback": review_feedback, "usage": usage}
+        return {
+            "review_feedback": review_feedback,
+            "usage": usage,
+            "final_report": render_report(draft, sources),
+            "finished_at": time.time(),
+        }
 
 
 def route_to_researchers(state: ResearchState) -> list[Send]:

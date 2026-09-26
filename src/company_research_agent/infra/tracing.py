@@ -1,18 +1,50 @@
-"""Optional Langfuse tracing: a LangChain callback handler when keys are set, nothing otherwise."""
+"""Optional Langfuse tracing: one trace per research thread, disabled when keys are missing."""
 
+import logging
+
+import httpx
 from langchain_core.callbacks import BaseCallbackHandler
 from langfuse import Langfuse
+from langfuse.api.core.api_error import ApiError
 from langfuse.langchain import CallbackHandler
+from langfuse.types import TraceContext
 
 from company_research_agent.config import Settings
 
+logger = logging.getLogger(__name__)
 
-def tracing_callbacks(settings: Settings) -> list[BaseCallbackHandler]:
-    if not settings.tracing_enabled:
-        return []
-    Langfuse(
-        public_key=settings.langfuse_public_key,
-        secret_key=settings.langfuse_secret_key.get_secret_value(),
-        host=settings.langfuse_host,
-    )
-    return [CallbackHandler(public_key=settings.langfuse_public_key)]
+
+class Tracing:
+    def __init__(self, settings: Settings) -> None:
+        self.public_key = settings.langfuse_public_key
+        self.client = (
+            Langfuse(
+                public_key=settings.langfuse_public_key,
+                secret_key=settings.langfuse_secret_key.get_secret_value(),
+                host=settings.langfuse_host,
+                timeout=5,
+            )
+            if settings.tracing_enabled
+            else None
+        )
+
+    @staticmethod
+    def trace_id(thread_id: str) -> str:
+        # Seeded by the thread id, so the planning run and the resumed run share one trace.
+        return Langfuse.create_trace_id(seed=thread_id)
+
+    def callbacks(self, thread_id: str) -> list[BaseCallbackHandler]:
+        if self.client is None:
+            return []
+        context = TraceContext(trace_id=self.trace_id(thread_id))
+        return [CallbackHandler(public_key=self.public_key, trace_context=context)]
+
+    def trace_url(self, thread_id: str) -> str | None:
+        if self.client is None:
+            return None
+        try:
+            return self.client.get_trace_url(trace_id=self.trace_id(thread_id))
+        except (httpx.HTTPError, ApiError):
+            # The link needs a Langfuse API call; an outage must not break the status endpoint.
+            logger.warning("could not build the Langfuse trace url", exc_info=True)
+            return None

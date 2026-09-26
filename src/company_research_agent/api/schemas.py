@@ -40,6 +40,13 @@ class SourceOut(BaseModel):
     url: str
 
 
+class UsageOut(BaseModel):
+    llm_calls: int
+    input_tokens: int
+    output_tokens: int
+    estimated_cost_usd: float
+
+
 class ResearchResponse(BaseModel):
     thread_id: str
     company: str
@@ -49,6 +56,9 @@ class ResearchResponse(BaseModel):
     report: str | None
     sources: list[SourceOut]
     error: str | None
+    usage: UsageOut | None
+    latency_seconds: float | None
+    trace_url: str | None
 
 
 class HealthResponse(BaseModel):

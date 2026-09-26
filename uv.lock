@@ -284,6 +284,7 @@ source = { editable = "." }
 dependencies = [
     { name = "ddgs" },
     { name = "fastapi" },
+    { name = "httpx" },
     { name = "langchain" },
     { name = "langchain-core" },
     { name = "langchain-openai" },
@@ -311,6 +312,7 @@ dev = [
 requires-dist = [
     { name = "ddgs", specifier = ">=9.16.0" },
     { name = "fastapi", specifier = ">=0.141.1" },
+    { name = "httpx", specifier = ">=0.28.1" },
     { name = "langchain", specifier = ">=1.4.2" },
     { name = "langchain-core", specifier = ">=1.6.5" },
     { name = "langchain-openai", specifier = ">=1.6.6" },

@@ -1,4 +1,5 @@
 import pytest
+from langchain_core.messages import AIMessage
 
 from company_research_agent.core.errors import InvalidLLMOutputError
 from company_research_agent.core.nodes import (
@@ -8,8 +9,9 @@ from company_research_agent.core.nodes import (
     route_after_review,
     route_to_researchers,
     search_query,
+    usage_of,
 )
-from company_research_agent.core.state import Finding, ResearchState
+from company_research_agent.core.state import Finding, ResearchState, Usage, add_usage
 from tests.fakes import REPORT, FakeLLM, FakeSearch
 
 
@@ -31,7 +33,11 @@ def written_state(llm: FakeLLM, revision_count: int = 0) -> ResearchState:
 
 def test_planner_returns_plan_and_resets_flags(fake_llm: FakeLLM) -> None:
     update = nodes(fake_llm).planner({"company": "Acme"})
-    assert update == {"plan": fake_llm.plan, "approved": False, "revision_count": 0}
+    assert update["plan"] == fake_llm.plan
+    assert update["approved"] is False
+    assert update["revision_count"] == 0
+    assert update["usage"] == {"llm_calls": 1, "input_tokens": 100, "output_tokens": 20}
+    assert update["planning_seconds"] >= 0
 
 
 def test_planner_trims_blank_and_extra_questions() -> None:
@@ -106,7 +112,8 @@ def test_reviewer_ok_finalizes_report(fake_llm: FakeLLM) -> None:
 def test_reviewer_revise_requests_revision_below_max() -> None:
     llm = FakeLLM(verdicts=[ReviewVerdict(verdict="revise", feedback="Too short.")])
     update = nodes(llm).reviewer(written_state(llm))
-    assert update == {"review_feedback": "Too short."}
+    assert update["review_feedback"] == "Too short."
+    assert "final_report" not in update
 
 
 def test_reviewer_revise_at_max_revisions_finalizes() -> None:
@@ -126,6 +133,20 @@ def test_reviewer_strips_invalid_citations_when_out_of_revisions() -> None:
     llm = FakeLLM(report="# Acme\n\nFact [7].")
     update = nodes(llm, max_revisions=0).reviewer(written_state(llm))
     assert "[7]" not in update["final_report"]
+
+
+def test_usage_of_message_without_metadata_counts_the_call() -> None:
+    assert usage_of(AIMessage(content="x")) == {
+        "llm_calls": 1,
+        "input_tokens": 0,
+        "output_tokens": 0,
+    }
+
+
+def test_add_usage_sums_and_starts_from_empty_channel() -> None:
+    one: Usage = {"llm_calls": 1, "input_tokens": 10, "output_tokens": 2}
+    assert add_usage({}, one) == one  # type: ignore[typeddict-item]
+    assert add_usage(one, one) == {"llm_calls": 2, "input_tokens": 20, "output_tokens": 4}
 
 
 def test_route_to_researchers_sends_one_task_per_question() -> None:

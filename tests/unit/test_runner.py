@@ -7,7 +7,7 @@ from company_research_agent.core.errors import (
 )
 from company_research_agent.core.graph import build_graph
 from company_research_agent.core.nodes import MAX_QUESTIONS, ReviewVerdict
-from company_research_agent.core.runner import ResearchRunner, ResearchStatus
+from company_research_agent.core.runner import ResearchRunner, ResearchStatus, latency_seconds
 from tests.fakes import FakeLLM, FakeSearch
 
 
@@ -97,3 +97,12 @@ def test_resume_caps_oversized_edited_plan(runner: ResearchRunner) -> None:
     runner.approve(thread_id)
     runner.resume(thread_id, [f"Acme question {i}?" for i in range(50)])
     assert len(runner.get(thread_id).plan) == MAX_QUESTIONS
+
+
+def test_latency_is_none_for_checkpoints_without_timings() -> None:
+    assert latency_seconds({"approved_at": 100.0, "finished_at": 105.0}) is None
+
+
+def test_latency_excludes_the_wait_for_approval() -> None:
+    values = {"planning_seconds": 2.0, "approved_at": 100.0, "finished_at": 105.5}
+    assert latency_seconds(values) == 7.5

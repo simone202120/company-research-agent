@@ -53,10 +53,14 @@ serializes access with a lock. Trade-off: simpler than the async stack (no `aios
 functions everywhere), at the cost of blocking a worker thread per active run, which is fine for a
 single-user demo.
 
-### Langfuse through the LangChain callback
-Tracing is one `CallbackHandler` passed in the run config, with the thread id as Langfuse session
-id so the planning run and the resumed run of a research share a session. `langchain` is a
-dependency only because `langfuse.langchain` imports it at runtime.
+### Langfuse through the LangChain callback, one trace per research
+Tracing is a `CallbackHandler` passed in the run config. Its trace id is derived from the thread id
+(`Langfuse.create_trace_id(seed=thread_id)`), so the planning run and the resumed run land in the
+same trace and the API can return a link to it without storing anything. Building the link needs
+one Langfuse API call (project id, cached after the first success), so only finished researches
+get a link, with a 5 s timeout; if Langfuse is unreachable the API returns no link instead of an
+error.
+`langchain` is a dependency only because `langfuse.langchain` imports it at runtime.
 
 ### Approval resumes the run in a FastAPI background task
 `POST /research` runs the graph synchronously up to the approval interrupt (one planner call), so
@@ -68,3 +72,12 @@ the API process (see the status decision above) and a crash loses in-flight runs
 ### Missing OpenRouter key fails at startup
 `create_llm` raises `ConfigurationError` when `OPENROUTER_API_KEY` is empty, so a misconfigured
 deployment fails when the API starts instead of on the first research.
+
+### Usage and latency live in the graph state
+Each node adds the token usage of its LLM calls to a `usage` channel with a summing reducer
+(parallel researchers included), and the planner, approval and final review record timestamps.
+Latency is planning time plus research time, excluding the wait for a human. Keeping them in the
+state makes them durable like the rest of the research. Cost is an estimate: tokens times the
+configurable `LLM_INPUT_PRICE_PER_MTOK` / `LLM_OUTPUT_PRICE_PER_MTOK`, computed by the API.
+Trade-off: it can drift from the real OpenRouter bill (exact per-call cost is visible in Langfuse),
+and a structured-output call that fails to parse is not counted (the run fails anyway).
