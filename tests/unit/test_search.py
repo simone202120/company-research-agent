@@ -75,6 +75,10 @@ def test_fallback_raises_when_every_provider_fails() -> None:
         FallbackSearch([provider(fail=True), provider(fail=True)])("q")
 
 
+def test_fallback_without_providers_returns_empty() -> None:
+    assert FallbackSearch([])("q") == []
+
+
 def test_create_search_uses_tavily_only_with_key() -> None:
     with_key = create_search(Settings(_env_file=None, tavily_api_key="tvly-test"))
     without_key = create_search(Settings(_env_file=None, tavily_api_key=""))

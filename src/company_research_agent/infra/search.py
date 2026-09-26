@@ -60,7 +60,7 @@ class FallbackSearch:
                 continue
             if results:
                 return results
-        if len(errors) == len(self.providers):
+        if errors and len(errors) == len(self.providers):
             raise SearchError(f"every search provider failed for {query!r}") from errors[-1]
         return []
 
