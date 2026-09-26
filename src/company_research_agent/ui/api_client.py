@@ -25,7 +25,10 @@ class ResearchApi:
             ) from exc
         if response.is_error:
             raise ApiError(error_message(response))
-        body: dict[str, Any] = response.json()
+        try:
+            body: dict[str, Any] = response.json()
+        except ValueError as exc:
+            raise ApiError("The research API returned an unexpected response. Retry.") from exc
         return body
 
     def healthy(self) -> bool:

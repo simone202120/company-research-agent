@@ -61,3 +61,12 @@ def test_unreachable_api_is_reported(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_healthy_when_health_answers(monkeypatch: pytest.MonkeyPatch) -> None:
     respond(monkeypatch, 200, {"status": "ok"})
     assert ResearchApi("http://api").healthy() is True
+
+
+def test_non_json_response_is_reported(monkeypatch: pytest.MonkeyPatch) -> None:
+    def request(method: str, url: str, **kwargs: Any) -> httpx.Response:
+        return httpx.Response(200, text="<html>", request=httpx.Request(method, url))
+
+    monkeypatch.setattr(api_client.httpx, "request", request)
+    with pytest.raises(ApiError, match="unexpected response"):
+        ResearchApi("http://api").get("t")

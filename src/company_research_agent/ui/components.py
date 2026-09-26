@@ -63,7 +63,7 @@ def edited_plan(plan: list[str]) -> list[str]:
         column_config={"question": st.column_config.TextColumn("Research question", width="large")},
         key="plan_editor",
     )
-    return [str(row.get("question") or "").strip() for row in rows if row.get("question")]
+    return [q for row in rows if (q := str(row.get("question") or "").strip())]
 
 
 def render_metrics(research: dict[str, Any]) -> None:

@@ -6,7 +6,7 @@ from streamlit.testing.v1 import AppTest
 
 from company_research_agent.ui import components
 from company_research_agent.ui.api_client import ApiError, ResearchApi
-from company_research_agent.ui.components import EXAMPLES, report_body, timeline
+from company_research_agent.ui.components import EXAMPLES, edited_plan, report_body, timeline
 
 APP = str(Path(components.__file__).with_name("app.py"))
 THREAD = "a" * 32
@@ -163,3 +163,9 @@ def test_timeline_states(status: str, node: str | None, expected: list[str]) -> 
 def test_report_body_drops_title_and_sources_and_demotes_sections() -> None:
     report = "# Acme\n\n## Overview\n\nFact [1].\n\n## Sources\n\n1. [a](https://a.test)\n"
     assert report_body(report) == "#### Overview\n\nFact [1]."
+
+
+def test_edited_plan_drops_blank_questions(monkeypatch: pytest.MonkeyPatch) -> None:
+    rows = [{"question": " Real one "}, {"question": "   "}, {"question": None}]
+    monkeypatch.setattr(components.st, "data_editor", lambda *a, **k: rows)
+    assert edited_plan(["Real one"]) == ["Real one"]
