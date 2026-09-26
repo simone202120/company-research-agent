@@ -39,3 +39,21 @@ registry assumes a single API process.
 ### Resume payload is always a dict
 The approval interrupt is resumed with `{"plan": [...] | None}`: LangGraph treats
 `Command(resume=None)` as "no resume value", so an approval without edits must still send a dict.
+
+### Search falls back provider by provider
+`FallbackSearch` tries Tavily (only when `TAVILY_API_KEY` is set) and then DuckDuckGo. A provider
+that raises is logged and skipped; one that returns nothing also passes the turn. The search fails
+with `SearchError` only when every provider raised, which fails the run. Trade-off: a Tavily outage
+silently degrades result quality instead of failing loudly (a warning is logged).
+
+### Synchronous graph with a shared SQLite connection
+The graph runs with the synchronous `SqliteSaver` on one connection opened with
+`check_same_thread=False`; LangGraph runs the researcher branches in a thread pool and the saver
+serializes access with a lock. Trade-off: simpler than the async stack (no `aiosqlite`, plain
+functions everywhere), at the cost of blocking a worker thread per active run, which is fine for a
+single-user demo.
+
+### Langfuse through the LangChain callback
+Tracing is one `CallbackHandler` passed in the run config, with the thread id as Langfuse session
+id so the planning run and the resumed run of a research share a session. `langchain` is a
+dependency only because `langfuse.langchain` imports it at runtime.
