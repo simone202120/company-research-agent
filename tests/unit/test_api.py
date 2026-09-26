@@ -102,3 +102,9 @@ def test_failed_run_reports_failed_status(fake_llm: FakeLLM) -> None:
     body = client.get(f"/research/{thread_id}").json()
     assert body["status"] == "failed"
     assert "search is down" in body["error"]
+
+
+def test_planner_failure_returns_server_error() -> None:
+    runner = ResearchRunner(build_graph(FakeLLM(plan=[]), FakeSearch(), InMemorySaver(), 1))
+    response = client_for(runner).post("/research", json={"company": "Acme"})
+    assert response.status_code == 500
